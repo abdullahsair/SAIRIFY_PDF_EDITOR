@@ -168,7 +168,7 @@ class AcrobatStudioApp {
         } else if (tool === 'hand') {
           hintText.innerHTML = '✋ <strong>Hand Tool:</strong> Click & drag to pan smoothly through document pages.';
         } else {
-          hintText.innerHTML = '↖️ <strong>Select Tool:</strong> Click elements to move/resize • Double-click text to edit • Press Delete to remove';
+          hintText.innerHTML = '↖️ <strong>Select / Edit Tool:</strong> Click ANY text on the PDF to edit it • Drag items to move/resize • Press Delete to remove';
         }
       }
     }

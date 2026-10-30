@@ -139,6 +139,13 @@ export class PdfViewer {
       const ctx = canvas.getContext('2d');
       ctx.scale(dpr, dpr);
 
+      // Interactive Text layer for detecting existing PDF text
+      const textLayer = document.createElement('div');
+      textLayer.className = 'pdf-text-layer';
+      textLayer.dataset.pageIndex = pageIndex;
+      textLayer.style.width = `${viewport.width}px`;
+      textLayer.style.height = `${viewport.height}px`;
+
       // Annotation interactive overlay container
       const annotLayer = document.createElement('div');
       annotLayer.className = 'pdf-annotation-layer';
@@ -147,6 +154,7 @@ export class PdfViewer {
       annotLayer.style.height = `${viewport.height}px`;
 
       pageWrapper.appendChild(canvas);
+      pageWrapper.appendChild(textLayer);
       pageWrapper.appendChild(annotLayer);
       this.container.appendChild(pageWrapper);
 
@@ -162,6 +170,36 @@ export class PdfViewer {
       const task = page.render(renderContext);
       this.renderTasks.push(task);
       await task.promise;
+
+      // Extract existing PDF text items for in-place editing
+      try {
+        const textContent = await page.getTextContent();
+        for (const item of textContent.items) {
+          if (!item.str || !item.str.trim()) continue;
+          const tx = item.transform[4];
+          const ty = item.transform[5];
+          const pt = viewport.convertToViewportPoint(tx, ty);
+          const rawFontSize = Math.hypot(item.transform[0], item.transform[1]);
+          const fontSize = Math.max(10, rawFontSize * viewport.scale);
+          const width = Math.max(16, (item.width || 20) * viewport.scale);
+          const height = Math.max(12, fontSize * 1.25);
+          const left = pt[0];
+          const top = pt[1] - fontSize;
+
+          const textEl = document.createElement('div');
+          textEl.className = 'pdf-existing-text';
+          textEl.dataset.originalText = item.str;
+          textEl.dataset.rawFontSize = rawFontSize;
+          textEl.style.left = `${left}px`;
+          textEl.style.top = `${top}px`;
+          textEl.style.width = `${width}px`;
+          textEl.style.height = `${height}px`;
+          textEl.title = `Click to edit text: "${item.str}"`;
+          textLayer.appendChild(textEl);
+        }
+      } catch (err) {
+        console.warn('Text layer extraction warning:', err);
+      }
     }
   }
 

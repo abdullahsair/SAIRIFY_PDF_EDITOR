@@ -230,16 +230,42 @@ export class AnnotationManager {
       const item = pageAnnots.find(a => a.id === id);
       if (item) {
         this.selectItem(item, pageIndex);
-        this.dragState = {
-          item,
-          pageIndex,
-          startX: coords.x,
-          startY: coords.y,
-          origX: item.x,
-          origY: item.y
-        };
+
+        // If clicking inside the text content, allow text editing without moving
+        const isTextDiv = e.target.classList.contains('annot-text-content') || e.target.closest('.annot-text-content');
+        if (isTextDiv) {
+          const textDiv = annotElement.querySelector('.annot-text-content');
+          if (textDiv) {
+            textDiv.contentEditable = 'true';
+            textDiv.focus();
+          }
+        } else {
+          // If clicking on element border/handle, allow moving
+          this.dragState = {
+            item,
+            pageIndex,
+            startX: coords.x,
+            startY: coords.y,
+            origX: item.x,
+            origY: item.y
+          };
+        }
         return;
       }
+    }
+
+    // Check if clicked on an existing PDF text element to edit it directly!
+    const existingTextEl = e.target.closest('.pdf-existing-text');
+    if (existingTextEl && (this.currentTool === 'select' || this.currentTool === 'text')) {
+      const text = existingTextEl.dataset.originalText;
+      const left = parseFloat(existingTextEl.style.left);
+      const top = parseFloat(existingTextEl.style.top);
+      const width = parseFloat(existingTextEl.style.width);
+      const height = parseFloat(existingTextEl.style.height);
+      const fontSize = Math.round(parseFloat(existingTextEl.dataset.rawFontSize) || 14);
+
+      this.convertExistingTextToEditable(pageIndex, text, left, top, width, height, fontSize, existingTextEl);
+      return;
     }
 
     // If tool is 'select' and clicked empty space -> clear selection
@@ -672,17 +698,130 @@ export class AnnotationManager {
   selectItem(item, pageIndex) {
     this.selectedItem = item;
     this.selectedPageIndex = pageIndex;
-    this.renderPageAnnotations(pageIndex);
+    this.updateDomSelection(pageIndex);
     this.onSelectionChange(item);
+  }
+
+  updateDomSelection(pageIndex) {
+    // Remove selection styling from all other items across all pages
+    document.querySelectorAll('.annot-item.selected').forEach(el => {
+      if (!this.selectedItem || el.dataset.id !== this.selectedItem.id) {
+        el.classList.remove('selected');
+        el.querySelectorAll('.resize-handle').forEach(h => h.remove());
+        const txt = el.querySelector('.annot-text-content');
+        if (txt) txt.contentEditable = 'false';
+      }
+    });
+
+    if (!this.selectedItem || this.selectedPageIndex === null) return;
+
+    const annotLayer = this.viewer.getPageAnnotationContainer(pageIndex);
+    if (!annotLayer) return;
+
+    let el = annotLayer.querySelector(`[data-id="${this.selectedItem.id}"]`);
+    if (!el) {
+      this.renderPageAnnotations(pageIndex);
+      el = annotLayer.querySelector(`[data-id="${this.selectedItem.id}"]`);
+      if (!el) return;
+    }
+
+    el.classList.add('selected');
+
+    if (this.selectedItem.type === 'text') {
+      const textDiv = el.querySelector('.annot-text-content');
+      if (textDiv) {
+        textDiv.contentEditable = 'true';
+      }
+    }
+
+    // Add handles if not present
+    if (this.selectedItem.type !== 'raster-layer' && !el.querySelector('.resize-handle')) {
+      const handles = ['nw', 'ne', 'se', 'sw'];
+      handles.forEach(h => {
+        const handle = document.createElement('div');
+        handle.className = `resize-handle handle-${h}`;
+        handle.dataset.handle = h;
+        el.appendChild(handle);
+      });
+    }
   }
 
   clearSelection() {
     if (this.selectedItem && this.selectedPageIndex !== null) {
-      const prevIdx = this.selectedPageIndex;
+      document.querySelectorAll('.annot-item.selected').forEach(el => {
+        el.classList.remove('selected');
+        el.querySelectorAll('.resize-handle').forEach(h => h.remove());
+        const txt = el.querySelector('.annot-text-content');
+        if (txt) txt.contentEditable = 'false';
+      });
       this.selectedItem = null;
       this.selectedPageIndex = null;
-      this.renderPageAnnotations(prevIdx);
       this.onSelectionChange(null);
+    }
+  }
+
+  convertExistingTextToEditable(pageIndex, text, left, top, width, height, fontSize, targetEl) {
+    this.pushHistory(`Edit text: ${text.substring(0, 16)}`);
+
+    if (targetEl) {
+      targetEl.style.display = 'none';
+    }
+
+    const pageWrapper = this.viewer.pageContainers[pageIndex];
+    const pageWidth = pageWrapper ? pageWrapper.clientWidth : 800;
+    const pageHeight = pageWrapper ? pageWrapper.clientHeight : 1100;
+
+    // 1. Clean whiteout box covering original PDF text
+    const whiteout = {
+      id: 'wo_auto_' + Date.now(),
+      type: 'whiteout',
+      x: Math.max(0, left - 2),
+      y: Math.max(0, top - 2),
+      width: width + 6,
+      height: height + 4,
+      pageRenderWidth: pageWidth,
+      pageRenderHeight: pageHeight
+    };
+
+    // 2. Live editable text box
+    const textAnnot = {
+      id: 'text_' + Date.now(),
+      type: 'text',
+      x: left,
+      y: top,
+      width: Math.max(width + 30, 90),
+      height: height + 6,
+      text: text,
+      fontFamily: 'Helvetica',
+      fontSize: fontSize,
+      color: '#000000',
+      bold: false,
+      italic: false,
+      pageRenderWidth: pageWidth,
+      pageRenderHeight: pageHeight
+    };
+
+    const list = this.getAnnotationsForPage(pageIndex);
+    list.push(whiteout);
+    list.push(textAnnot);
+
+    this.renderPageAnnotations(pageIndex);
+    this.selectItem(textAnnot, pageIndex);
+    this.setTool('select');
+
+    setTimeout(() => {
+      const annotLayer = this.viewer.getPageAnnotationContainer(pageIndex);
+      if (annotLayer) {
+        const textDiv = annotLayer.querySelector(`[data-id="${textAnnot.id}"] .annot-text-content`);
+        if (textDiv) {
+          textDiv.focus();
+          document.execCommand('selectAll', false, null);
+        }
+      }
+    }, 50);
+
+    if (window.app && window.app.showToast) {
+      window.app.showToast('Text is now editable! Type your changes.', 'success');
     }
   }
 
