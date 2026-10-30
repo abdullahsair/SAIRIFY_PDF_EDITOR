@@ -775,6 +775,13 @@ body {
   background-color: #ffffff;
 }
 
+.annot-auto-mask {
+  pointer-events: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 /* Redact tool */
 .annot-redact {
   background-color: #000000;

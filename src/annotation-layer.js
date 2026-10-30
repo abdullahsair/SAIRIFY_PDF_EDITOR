@@ -760,6 +760,59 @@ export class AnnotationManager {
     }
   }
 
+  sampleCanvasColors(canvas, left, top, width, height) {
+    if (!canvas) return { bgColor: '#ffffff', textColor: '#000000' };
+    try {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const dpr = canvas.width / (canvas.clientWidth || parseInt(canvas.style.width, 10) || 1);
+
+      // 1. Sample Background Color: 4px to the left of the text, middle vertical
+      const bgX = Math.max(1, Math.round((left - 4) * dpr));
+      const bgY = Math.max(1, Math.round((top + height * 0.5) * dpr));
+      const bgPixel = ctx.getImageData(bgX, bgY, 1, 1).data;
+
+      let bgColor = '#ffffff';
+      if (bgPixel[3] > 10) {
+        bgColor = '#' + [bgPixel[0], bgPixel[1], bgPixel[2]].map(x => x.toString(16).padStart(2, '0')).join('');
+      }
+
+      // 2. Sample Text Color: Scan across character strokes to find ink with contrast to background
+      const scanStartX = Math.max(0, Math.round(left * dpr));
+      const scanWidth = Math.min(Math.round(width * dpr), Math.round(60 * dpr));
+      const scanStartY = Math.max(0, Math.round(top * dpr));
+      const scanHeight = Math.max(1, Math.round(height * dpr));
+
+      const imgData = ctx.getImageData(scanStartX, scanStartY, Math.max(1, scanWidth), scanHeight).data;
+      let maxDist = 0;
+      let bestR = 0, bestG = 0, bestB = 0;
+
+      for (let i = 0; i < imgData.length; i += 4) {
+        if (imgData[i + 3] < 50) continue; // skip transparent
+        const dist = Math.hypot(
+          imgData[i] - bgPixel[0],
+          imgData[i + 1] - bgPixel[1],
+          imgData[i + 2] - bgPixel[2]
+        );
+        if (dist > maxDist) {
+          maxDist = dist;
+          bestR = imgData[i];
+          bestG = imgData[i + 1];
+          bestB = imgData[i + 2];
+        }
+      }
+
+      let textColor = '#000000';
+      if (maxDist > 45) {
+        textColor = '#' + [bestR, bestG, bestB].map(x => x.toString(16).padStart(2, '0')).join('');
+      }
+
+      return { bgColor, textColor };
+    } catch (err) {
+      console.warn('Canvas color sampling warning:', err);
+      return { bgColor: '#ffffff', textColor: '#000000' };
+    }
+  }
+
   convertExistingTextToEditable(pageIndex, text, left, top, width, height, fontSize, targetEl) {
     this.pushHistory(`Edit text: ${text.substring(0, 16)}`);
 
@@ -770,18 +823,24 @@ export class AnnotationManager {
     const pageWrapper = this.viewer.pageContainers[pageIndex];
     const pageWidth = pageWrapper ? pageWrapper.clientWidth : 800;
     const pageHeight = pageWrapper ? pageWrapper.clientHeight : 1100;
+    const canvas = this.viewer.pageCanvases[pageIndex];
 
-    // Detect exact formatting and layout
+    // Detect exact section background color and text color from canvas pixels!
+    const { bgColor, textColor } = this.sampleCanvasColors(canvas, left, top, width, height);
+
+    // Detect font family, weight, italic, and baseline alignment
     const fontFamily = (targetEl && targetEl.dataset.fontFamily) || 'Helvetica';
     const bold = (targetEl && targetEl.dataset.bold === 'true') || false;
     const italic = (targetEl && targetEl.dataset.italic === 'true') || false;
     const ascent = (targetEl && parseFloat(targetEl.dataset.ascent)) || 0.75;
     const descent = (targetEl && parseFloat(targetEl.dataset.descent)) || -0.22;
 
-    // 1. Clean whiteout box covering original PDF text with exact bounds
-    const whiteout = {
-      id: 'wo_auto_' + Date.now(),
+    // 1. Invisible mask box matching EXACT canvas background color (NO white rectangle!)
+    const mask = {
+      id: 'mask_auto_' + Date.now(),
       type: 'whiteout',
+      isAutoMask: true,
+      maskColor: bgColor, // Matches exact section background!
       x: Math.max(0, left - 1),
       y: Math.max(0, top - 1),
       width: width + 2,
@@ -790,7 +849,7 @@ export class AnnotationManager {
       pageRenderHeight: pageHeight
     };
 
-    // 2. Live editable text box matching original font, size, weight, italic, and position
+    // 2. Live editable text box matching original text color, font, size, weight, and position
     const textAnnot = {
       id: 'text_' + Date.now(),
       type: 'text',
@@ -801,7 +860,7 @@ export class AnnotationManager {
       text: text,
       fontFamily: fontFamily,
       fontSize: fontSize,
-      color: '#000000',
+      color: textColor, // Matches original text color (RED stays RED, etc.)
       bold: bold,
       italic: italic,
       ascent: ascent,
@@ -811,7 +870,7 @@ export class AnnotationManager {
     };
 
     const list = this.getAnnotationsForPage(pageIndex);
-    list.push(whiteout);
+    list.push(mask);
     list.push(textAnnot);
 
     this.renderPageAnnotations(pageIndex);
@@ -830,7 +889,7 @@ export class AnnotationManager {
     }, 50);
 
     if (window.app && window.app.showToast) {
-      window.app.showToast('Text format & layout preserved! Type your changes.', 'success');
+      window.app.showToast('Text format & original colors preserved!', 'success');
     }
   }
 
@@ -885,8 +944,15 @@ export class AnnotationManager {
       el.style.height = `${item.height}px`;
 
       if (item.type === 'whiteout') {
-        el.style.backgroundColor = '#ffffff';
-        el.style.boxShadow = isSelected ? '0 0 0 1.5px #E5252A' : 'none';
+        el.style.backgroundColor = item.maskColor || '#ffffff';
+        if (item.isAutoMask) {
+          el.className += ' annot-auto-mask';
+          el.style.boxShadow = 'none';
+          el.style.outline = 'none';
+          el.style.pointerEvents = 'none';
+        } else {
+          el.style.boxShadow = isSelected ? '0 0 0 1.5px #E5252A' : 'none';
+        }
       } 
       else if (item.type === 'redact') {
         el.style.backgroundColor = '#000000';

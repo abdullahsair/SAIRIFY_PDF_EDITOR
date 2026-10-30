@@ -97,12 +97,13 @@ export async function exportModifiedPdf({
           // In PDF, Y=0 is bottom-left
           const boxY = pageHeight - (item.y * scaleY + boxH);
 
+          const maskColorInfo = parseColor(item.maskColor || '#ffffff');
           page.drawRectangle({
             x: boxX,
             y: boxY,
             width: boxW,
             height: boxH,
-            color: rgb(1, 1, 1),
+            color: maskColorInfo.color,
             borderWidth: 0
           });
         } 
