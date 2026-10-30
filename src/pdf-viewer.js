@@ -182,18 +182,50 @@ export class PdfViewer {
           const rawFontSize = Math.hypot(item.transform[0], item.transform[1]);
           const fontSize = Math.max(10, rawFontSize * viewport.scale);
           const width = Math.max(16, (item.width || 20) * viewport.scale);
-          const height = Math.max(12, fontSize * 1.25);
+
+          // Detect font styling and family
+          const style = (textContent.styles && textContent.styles[item.fontName]) || {};
+          let fontObj = null;
+          try {
+            if (page.commonObjs && page.commonObjs.has(item.fontName)) {
+              fontObj = page.commonObjs.get(item.fontName);
+            }
+          } catch (e) {}
+
+          const fontLoadedName = (fontObj && fontObj.loadedName) || item.fontName || '';
+          const isBold = Boolean((fontObj && fontObj.bold) || /bold|black|heavy|medium/i.test(fontLoadedName));
+          const isItalic = Boolean((fontObj && fontObj.italic) || /italic|oblique/i.test(fontLoadedName));
+
+          let fontFamily = 'Helvetica';
+          if (/times|serif/i.test(fontLoadedName) || style.fontFamily === 'serif') {
+            fontFamily = 'Times';
+          } else if (/courier|mono/i.test(fontLoadedName) || style.fontFamily === 'monospace') {
+            fontFamily = 'Courier';
+          }
+
+          const ascent = style.ascent !== undefined ? style.ascent : 0.75;
+          const descent = style.descent !== undefined ? style.descent : -0.22;
+          const height = Math.max(12, fontSize * (ascent - descent));
           const left = pt[0];
-          const top = pt[1] - fontSize;
+          // Exact text top matching baseline:
+          const top = pt[1] - (fontSize * ascent);
 
           const textEl = document.createElement('div');
           textEl.className = 'pdf-existing-text';
           textEl.dataset.originalText = item.str;
           textEl.dataset.rawFontSize = rawFontSize;
+          textEl.dataset.fontFamily = fontFamily;
+          textEl.dataset.bold = isBold ? 'true' : 'false';
+          textEl.dataset.italic = isItalic ? 'true' : 'false';
+          textEl.dataset.ascent = ascent;
+          textEl.dataset.descent = descent;
           textEl.style.left = `${left}px`;
           textEl.style.top = `${top}px`;
           textEl.style.width = `${width}px`;
           textEl.style.height = `${height}px`;
+          textEl.style.fontFamily = fontFamily === 'Times' ? '"Times New Roman", Times, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Helvetica, Arial, sans-serif';
+          textEl.style.fontWeight = isBold ? 'bold' : 'normal';
+          textEl.style.fontStyle = isItalic ? 'italic' : 'normal';
           textEl.title = `Click to edit text: "${item.str}"`;
           textLayer.appendChild(textEl);
         }

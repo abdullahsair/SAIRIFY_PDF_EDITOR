@@ -771,32 +771,41 @@ export class AnnotationManager {
     const pageWidth = pageWrapper ? pageWrapper.clientWidth : 800;
     const pageHeight = pageWrapper ? pageWrapper.clientHeight : 1100;
 
-    // 1. Clean whiteout box covering original PDF text
+    // Detect exact formatting and layout
+    const fontFamily = (targetEl && targetEl.dataset.fontFamily) || 'Helvetica';
+    const bold = (targetEl && targetEl.dataset.bold === 'true') || false;
+    const italic = (targetEl && targetEl.dataset.italic === 'true') || false;
+    const ascent = (targetEl && parseFloat(targetEl.dataset.ascent)) || 0.75;
+    const descent = (targetEl && parseFloat(targetEl.dataset.descent)) || -0.22;
+
+    // 1. Clean whiteout box covering original PDF text with exact bounds
     const whiteout = {
       id: 'wo_auto_' + Date.now(),
       type: 'whiteout',
-      x: Math.max(0, left - 2),
-      y: Math.max(0, top - 2),
-      width: width + 6,
-      height: height + 4,
+      x: Math.max(0, left - 1),
+      y: Math.max(0, top - 1),
+      width: width + 2,
+      height: height + 2,
       pageRenderWidth: pageWidth,
       pageRenderHeight: pageHeight
     };
 
-    // 2. Live editable text box
+    // 2. Live editable text box matching original font, size, weight, italic, and position
     const textAnnot = {
       id: 'text_' + Date.now(),
       type: 'text',
       x: left,
       y: top,
-      width: Math.max(width + 30, 90),
-      height: height + 6,
+      width: Math.max(width + 6, 40),
+      height: height,
       text: text,
-      fontFamily: 'Helvetica',
+      fontFamily: fontFamily,
       fontSize: fontSize,
       color: '#000000',
-      bold: false,
-      italic: false,
+      bold: bold,
+      italic: italic,
+      ascent: ascent,
+      descent: descent,
       pageRenderWidth: pageWidth,
       pageRenderHeight: pageHeight
     };
@@ -821,7 +830,7 @@ export class AnnotationManager {
     }, 50);
 
     if (window.app && window.app.showToast) {
-      window.app.showToast('Text is now editable! Type your changes.', 'success');
+      window.app.showToast('Text format & layout preserved! Type your changes.', 'success');
     }
   }
 
@@ -877,7 +886,7 @@ export class AnnotationManager {
 
       if (item.type === 'whiteout') {
         el.style.backgroundColor = '#ffffff';
-        el.style.boxShadow = isSelected ? '0 0 0 2px #E5252A' : 'none';
+        el.style.boxShadow = isSelected ? '0 0 0 1.5px #E5252A' : 'none';
       } 
       else if (item.type === 'redact') {
         el.style.backgroundColor = '#000000';
@@ -895,10 +904,13 @@ export class AnnotationManager {
         textDiv.contentEditable = isSelected ? 'true' : 'false';
         textDiv.innerText = item.text || '';
         textDiv.style.fontSize = `${item.fontSize || 14}px`;
-        textDiv.style.fontFamily = `${item.fontFamily || 'Helvetica'}, Arial, sans-serif`;
+        textDiv.style.fontFamily = item.fontFamily === 'Times' ? '"Times New Roman", Times, serif' : item.fontFamily === 'Courier' ? 'Courier, monospace' : `${item.fontFamily || 'Helvetica'}, Arial, sans-serif`;
         textDiv.style.color = item.color || '#000000';
         textDiv.style.fontWeight = item.bold ? 'bold' : 'normal';
         textDiv.style.fontStyle = item.italic ? 'italic' : 'normal';
+        textDiv.style.lineHeight = '1';
+        textDiv.style.margin = '0';
+        textDiv.style.padding = '0';
 
         textDiv.addEventListener('input', () => {
           item.text = textDiv.innerText;

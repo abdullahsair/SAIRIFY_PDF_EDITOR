@@ -246,8 +246,9 @@ export async function exportModifiedPdf({
           const lineHeight = fontSize * 1.25;
 
           const startX = item.x * scaleX;
+          const ascent = item.ascent !== undefined ? item.ascent : 0.75;
           // In PDF, Y coordinate corresponds to text baseline!
-          let currentY = pageHeight - (item.y * scaleY + fontSize);
+          let currentY = pageHeight - (item.y * scaleY + fontSize * ascent);
 
           for (const line of lines) {
             page.drawText(line, {
