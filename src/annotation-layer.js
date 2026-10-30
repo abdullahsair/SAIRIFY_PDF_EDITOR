@@ -830,7 +830,9 @@ export class AnnotationManager {
 
     // Detect font family, weight, italic, and baseline alignment
     const fontFamily = (targetEl && targetEl.dataset.fontFamily) || 'Helvetica';
-    const bold = (targetEl && targetEl.dataset.bold === 'true') || false;
+    const rawFontSize = (targetEl && parseFloat(targetEl.dataset.rawFontSize)) || fontSize;
+    const isHeading = rawFontSize >= 13 || fontSize >= 15;
+    const bold = (targetEl && targetEl.dataset.bold === 'true') || isHeading;
     const italic = (targetEl && targetEl.dataset.italic === 'true') || false;
     const ascent = (targetEl && parseFloat(targetEl.dataset.ascent)) || 0.75;
     const descent = (targetEl && parseFloat(targetEl.dataset.descent)) || -0.22;
@@ -841,10 +843,10 @@ export class AnnotationManager {
       type: 'whiteout',
       isAutoMask: true,
       maskColor: bgColor, // Matches exact section background!
-      x: Math.max(0, left - 1),
-      y: Math.max(0, top - 1),
-      width: width + 2,
-      height: height + 2,
+      x: Math.max(0, left - 2),
+      y: Math.max(0, top - 2),
+      width: Math.max(width + 12, 40),
+      height: height + 4,
       pageRenderWidth: pageWidth,
       pageRenderHeight: pageHeight
     };
@@ -855,7 +857,7 @@ export class AnnotationManager {
       type: 'text',
       x: left,
       y: top,
-      width: Math.max(width + 6, 40),
+      width: Math.max(width + 16, 40),
       height: height,
       text: text,
       fontFamily: fontFamily,
@@ -970,13 +972,23 @@ export class AnnotationManager {
         textDiv.contentEditable = isSelected ? 'true' : 'false';
         textDiv.innerText = item.text || '';
         textDiv.style.fontSize = `${item.fontSize || 14}px`;
-        textDiv.style.fontFamily = item.fontFamily === 'Times' ? '"Times New Roman", Times, serif' : item.fontFamily === 'Courier' ? 'Courier, monospace' : `${item.fontFamily || 'Helvetica'}, Arial, sans-serif`;
+        textDiv.style.fontFamily = item.fontFamily === 'Times' 
+          ? '"Times New Roman", Times, Georgia, serif' 
+          : item.fontFamily === 'Courier' 
+          ? '"Courier New", Courier, monospace' 
+          : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
         textDiv.style.color = item.color || '#000000';
-        textDiv.style.fontWeight = item.bold ? 'bold' : 'normal';
+        textDiv.style.fontWeight = item.bold ? '700' : '400';
         textDiv.style.fontStyle = item.italic ? 'italic' : 'normal';
-        textDiv.style.lineHeight = '1';
+        textDiv.style.lineHeight = '1.15';
+        textDiv.style.whiteSpace = 'nowrap';
+        textDiv.style.wordBreak = 'normal';
         textDiv.style.margin = '0';
-        textDiv.style.padding = '0';
+        textDiv.style.padding = '0 2px';
+
+        // Auto-fit wrapper width
+        el.style.width = 'auto';
+        el.style.minWidth = `${item.width}px`;
 
         textDiv.addEventListener('input', () => {
           item.text = textDiv.innerText;

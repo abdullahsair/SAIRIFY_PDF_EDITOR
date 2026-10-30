@@ -4,6 +4,80 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+// Merge adjacent PDF text items on the same horizontal line into a complete, unbroken line
+function mergeLineItems(items, viewport) {
+  if (!items || items.length === 0) return [];
+
+  const processed = [];
+  for (const item of items) {
+    if (!item.str || !item.str.trim()) continue;
+    const tx = item.transform[4];
+    const ty = item.transform[5];
+    const pt = viewport.convertToViewportPoint(tx, ty);
+    const rawFontSize = Math.hypot(item.transform[0], item.transform[1]);
+    const fontSize = Math.max(10, rawFontSize * viewport.scale);
+    const width = Math.max(8, (item.width || 10) * viewport.scale);
+
+    processed.push({
+      item,
+      str: item.str,
+      tx, ty, pt,
+      rawFontSize,
+      fontSize,
+      width,
+      left: pt[0],
+      top: pt[1] - fontSize * 0.8,
+      right: pt[0] + width,
+      fontName: item.fontName
+    });
+  }
+
+  // Sort by vertical position (Y), then horizontal (X)
+  processed.sort((a, b) => {
+    const dy = a.top - b.top;
+    if (Math.abs(dy) > 4) return dy;
+    return a.left - b.left;
+  });
+
+  const lines = [];
+  let currentLine = null;
+
+  for (const p of processed) {
+    if (!currentLine) {
+      currentLine = { ...p, items: [p] };
+      continue;
+    }
+
+    const dy = Math.abs(currentLine.top - p.top);
+    const dx = p.left - currentLine.right;
+
+    // Dynamic thresholds based on font size:
+    const maxDy = Math.max(8, currentLine.fontSize * 0.45);
+    const maxDx = Math.max(50, currentLine.fontSize * 1.8);
+    const minDx = -Math.max(12, currentLine.fontSize * 0.35);
+
+    // Merge if on same line
+    if (dy <= maxDy && dx >= minDx && dx <= maxDx) {
+      const needsSpace = dx > 2 && !currentLine.str.endsWith(' ') && !p.str.startsWith(' ');
+      currentLine.str += (needsSpace ? ' ' : '') + p.str;
+      currentLine.right = Math.max(currentLine.right, p.right);
+      currentLine.width = currentLine.right - currentLine.left;
+      currentLine.fontSize = Math.max(currentLine.fontSize, p.fontSize);
+      currentLine.rawFontSize = Math.max(currentLine.rawFontSize, p.rawFontSize);
+      currentLine.items.push(p);
+    } else {
+      lines.push(currentLine);
+      currentLine = { ...p, items: [p] };
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
 export class PdfViewer {
   constructor(options = {}) {
     this.container = options.container;
@@ -171,49 +245,51 @@ export class PdfViewer {
       this.renderTasks.push(task);
       await task.promise;
 
-      // Extract existing PDF text items for in-place editing
+      // Extract existing PDF text items and merge into complete lines
       try {
         const textContent = await page.getTextContent();
-        for (const item of textContent.items) {
-          if (!item.str || !item.str.trim()) continue;
-          const tx = item.transform[4];
-          const ty = item.transform[5];
-          const pt = viewport.convertToViewportPoint(tx, ty);
-          const rawFontSize = Math.hypot(item.transform[0], item.transform[1]);
-          const fontSize = Math.max(10, rawFontSize * viewport.scale);
-          const width = Math.max(16, (item.width || 20) * viewport.scale);
+        const mergedLines = mergeLineItems(textContent.items, viewport);
 
-          // Detect font styling and family
-          const style = (textContent.styles && textContent.styles[item.fontName]) || {};
+        for (const line of mergedLines) {
+          const firstItem = line.items[0].item;
+          const style = (textContent.styles && textContent.styles[firstItem.fontName]) || {};
           let fontObj = null;
           try {
-            if (page.commonObjs && page.commonObjs.has(item.fontName)) {
-              fontObj = page.commonObjs.get(item.fontName);
+            if (page.commonObjs && page.commonObjs.has(firstItem.fontName)) {
+              fontObj = page.commonObjs.get(firstItem.fontName);
             }
           } catch (e) {}
 
-          const fontLoadedName = (fontObj && fontObj.loadedName) || item.fontName || '';
-          const isBold = Boolean((fontObj && fontObj.bold) || /bold|black|heavy|medium/i.test(fontLoadedName));
+          const fontLoadedName = (fontObj && fontObj.loadedName) || firstItem.fontName || '';
+          const isBold = Boolean(
+            (fontObj && (fontObj.bold || fontObj.black)) ||
+            /bold|black|heavy|medium|semi|bld|demi|w[6-9]/i.test(fontLoadedName) ||
+            /bold|black|heavy|medium|semi|bld|demi|w[6-9]/i.test(firstItem.fontName) ||
+            line.rawFontSize >= 13 || // Any title/heading in presentations or documents
+            line.fontSize >= 15
+          );
           const isItalic = Boolean((fontObj && fontObj.italic) || /italic|oblique/i.test(fontLoadedName));
 
-          let fontFamily = 'Helvetica';
+          let fontFamily = 'sans-serif';
+          let cssFont = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
           if (/times|serif/i.test(fontLoadedName) || style.fontFamily === 'serif') {
             fontFamily = 'Times';
+            cssFont = '"Times New Roman", Times, Georgia, serif';
           } else if (/courier|mono/i.test(fontLoadedName) || style.fontFamily === 'monospace') {
             fontFamily = 'Courier';
+            cssFont = '"Courier New", Courier, monospace';
           }
 
           const ascent = style.ascent !== undefined ? style.ascent : 0.75;
           const descent = style.descent !== undefined ? style.descent : -0.22;
-          const height = Math.max(12, fontSize * (ascent - descent));
-          const left = pt[0];
-          // Exact text top matching baseline:
-          const top = pt[1] - (fontSize * ascent);
+          const height = Math.max(14, line.fontSize * (ascent - descent));
+          const left = line.left;
+          const top = line.pt[1] - (line.fontSize * ascent);
 
           const textEl = document.createElement('div');
           textEl.className = 'pdf-existing-text';
-          textEl.dataset.originalText = item.str;
-          textEl.dataset.rawFontSize = rawFontSize;
+          textEl.dataset.originalText = line.str;
+          textEl.dataset.rawFontSize = line.rawFontSize;
           textEl.dataset.fontFamily = fontFamily;
           textEl.dataset.bold = isBold ? 'true' : 'false';
           textEl.dataset.italic = isItalic ? 'true' : 'false';
@@ -221,12 +297,12 @@ export class PdfViewer {
           textEl.dataset.descent = descent;
           textEl.style.left = `${left}px`;
           textEl.style.top = `${top}px`;
-          textEl.style.width = `${width}px`;
+          textEl.style.width = `${line.width + 12}px`;
           textEl.style.height = `${height}px`;
-          textEl.style.fontFamily = fontFamily === 'Times' ? '"Times New Roman", Times, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Helvetica, Arial, sans-serif';
-          textEl.style.fontWeight = isBold ? 'bold' : 'normal';
+          textEl.style.fontFamily = cssFont;
+          textEl.style.fontWeight = isBold ? '700' : '400';
           textEl.style.fontStyle = isItalic ? 'italic' : 'normal';
-          textEl.title = `Click to edit text: "${item.str}"`;
+          textEl.title = `Click to edit: "${line.str}"`;
           textLayer.appendChild(textEl);
         }
       } catch (err) {
