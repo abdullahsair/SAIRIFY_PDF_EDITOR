@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AcrobatFlow - Professional PDF Reader & Editor</title>
+  <meta name="description" content="Open, edit, annotate, erase text, sign, and download PDF files directly in your browser with Adobe Acrobat pro capabilities.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Top Global Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="toggleSidebarBtn" class="icon-btn" title="Toggle Page Thumbnails Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+        <div class="brand-logo">
+          <span class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </span>
+          <span class="brand-name">Acrobat<span>Flow</span></span>
+        </div>
+        <div class="doc-meta-badge">
+          <span id="docFilename">sample-agreement.pdf</span>
+          <span id="docStatusTag">Ready</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <!-- Page Navigation Controls -->
+        <div class="nav-cluster">
+          <button id="prevPageBtn" class="icon-btn sm" title="Previous Page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="page-indicator">
+            <input type="number" id="pageNumberInput" value="1" min="1" max="1" />
+            <span class="page-divider">/</span>
+            <span id="totalPagesText">1</span>
+          </div>
+          <button id="nextPageBtn" class="icon-btn sm" title="Next Page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <!-- Zoom Controls -->
+        <div class="nav-cluster">
+          <button id="zoomOutBtn" class="icon-btn sm" title="Zoom Out (Ctrl -)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button id="zoomLevelBtn" class="pill-btn" title="Zoom Level">100%</button>
+          <button id="zoomInBtn" class="icon-btn sm" title="Zoom In (Ctrl +)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button id="fitWidthBtn" class="icon-btn sm" title="Fit to Width">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Open Files -->
+        <input type="file" id="pdfFileInput" accept="application/pdf" style="display: none;" />
+        <button id="openPdfBtn" class="btn btn-secondary" title="Open PDF from Computer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Open PDF</span>
+        </button>
+
+        <button id="samplePdfBtn" class="btn btn-subtle" title="Load Sample Demo Document">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+          <span>Sample PDF</span>
+        </button>
+
+        <button id="printBtn" class="icon-btn" title="Print Document">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </button>
+
+        <!-- Primary Download Button -->
+        <button id="downloadPdfBtn" class="btn btn-primary" title="Export & Download Edited PDF">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download PDF</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Adobe Acrobat Ribbon / Main Editing Tools -->
+    <nav class="tools-ribbon">
+      <div class="tool-group">
+        <button class="tool-btn" data-tool="hand" title="Hand Tool (Pan / Navigate)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+          <span>Hand</span>
+        </button>
+        <button class="tool-btn active" data-tool="select" title="Select Tool (Move, edit & resize items)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+          <span>Select</span>
+        </button>
+      </div>
+
+      <div class="ribbon-separator"></div>
+
+      <!-- Content Manipulation & Editing -->
+      <div class="tool-group">
+        <button class="tool-btn" data-tool="text" title="Add New Text (Click to place)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          <span>Add Text</span>
+        </button>
+
+        <button class="tool-btn special-whiteout" data-tool="whiteout" title="Whiteout / Erase Existing PDF Text">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-dasharray="3 3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          <span>Whiteout (Erase)</span>
+        </button>
+
+        <button class="tool-btn" data-tool="redact" title="Redact / Blackout Sensitive Info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" fill="currentColor"/></svg>
+          <span>Redact</span>
+        </button>
+      </div>
+
+      <div class="ribbon-separator"></div>
+
+      <!-- Markups & Annotations -->
+      <div class="tool-group">
+        <button class="tool-btn" data-tool="pen" title="Freehand Drawing Pen">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          <span>Draw</span>
+        </button>
+
+        <button class="tool-btn" data-tool="highlighter" title="Highlight Text / Sections">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+          <span>Highlighter</span>
+        </button>
+
+        <!-- Shapes Dropdown -->
+        <div class="dropdown-wrapper">
+          <button class="tool-btn" id="shapeToolBtn" data-tool="shape" title="Shapes (Rectangle, Circle, Line, Arrow)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span id="activeShapeLabel">Shapes</span>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu" id="shapeDropdownMenu">
+            <button class="dropdown-item" data-shape="rectangle">◻️ Rectangle</button>
+            <button class="dropdown-item" data-shape="circle">⚪ Circle / Oval</button>
+            <button class="dropdown-item" data-shape="line">─ Straight Line</button>
+            <button class="dropdown-item" data-shape="arrow">➔ Directional Arrow</button>
+          </div>
+        </div>
+
+        <button class="tool-btn" id="openSigModalBtn" title="Draw or Type Digital Signature">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          <span>Signature</span>
+        </button>
+
+        <!-- Stamps Dropdown -->
+        <div class="dropdown-wrapper">
+          <button class="tool-btn" id="stampMenuBtn" title="Document Stamps">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>Stamps</span>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu" id="stampDropdownMenu">
+            <button class="dropdown-item stamp-opt" data-stamp="APPROVED" data-color="#16a34a">✅ APPROVED</button>
+            <button class="dropdown-item stamp-opt" data-stamp="CONFIDENTIAL" data-color="#dc2626">🔒 CONFIDENTIAL</button>
+            <button class="dropdown-item stamp-opt" data-stamp="PAID" data-color="#16a34a">💵 PAID</button>
+            <button class="dropdown-item stamp-opt" data-stamp="URGENT" data-color="#ea580c">⚡ URGENT</button>
+            <button class="dropdown-item stamp-opt" data-stamp="DRAFT" data-color="#2563eb">📝 DRAFT</button>
+            <button class="dropdown-item stamp-opt" data-stamp="VOID" data-color="#71717a">🚫 VOID</button>
+          </div>
+        </div>
+
+        <!-- Insert Image -->
+        <input type="file" id="imageUploadInput" accept="image/png,image/jpeg,image/webp" style="display: none;" />
+        <button class="tool-btn" id="insertImageBtn" title="Insert Image / Logo / Stamp">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Image</span>
+        </button>
+      </div>
+
+      <div class="ribbon-separator"></div>
+
+      <!-- Page Actions -->
+      <div class="tool-group">
+        <button class="tool-btn" id="rotatePageBtn" title="Rotate Current Page Clockwise 90°">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Rotate</span>
+        </button>
+
+        <button class="tool-btn" id="deletePageBtn" title="Delete Current Page">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Delete Page</span>
+        </button>
+      </div>
+
+      <div class="ribbon-separator"></div>
+
+      <!-- History & Item Actions -->
+      <div class="tool-group">
+        <button class="icon-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button class="icon-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="icon-btn danger" id="deleteItemBtn" title="Delete Selected Item (Delete key)" style="display: none;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Contextual Tool Options Bar -->
+    <div class="context-bar" id="contextBar">
+      <!-- General Tool Hint -->
+      <div class="context-group" id="hintContextGroup">
+        <span class="context-hint" id="contextHintText">💡 Click any tool to edit • Use <strong>Whiteout</strong> to erase text • Click <strong>Download PDF</strong> to export</span>
+      </div>
+
+      <!-- Text options -->
+      <div class="context-group" id="textContextGroup" style="display: none;">
+        <span class="context-label">Text Properties:</span>
+        <select id="fontFamilySelect" class="context-select">
+          <option value="Helvetica">Helvetica (Standard)</option>
+          <option value="Times">Times New Roman</option>
+          <option value="Courier">Courier Mono</option>
+        </select>
+
+        <select id="fontSizeSelect" class="context-select">
+          <option value="10">10 pt</option>
+          <option value="12">12 pt</option>
+          <option value="14" selected>14 pt</option>
+          <option value="16">16 pt</option>
+          <option value="18">18 pt</option>
+          <option value="22">22 pt</option>
+          <option value="28">28 pt</option>
+          <option value="36">36 pt</option>
+        </select>
+
+        <input type="color" id="textColorPicker" value="#000000" class="color-picker-input" title="Text Color" />
+
+        <button id="boldToggleBtn" class="pill-toggle" title="Bold"><strong>B</strong></button>
+        <button id="italicToggleBtn" class="pill-toggle" title="Italic"><em>I</em></button>
+      </div>
+
+      <!-- Pen options -->
+      <div class="context-group" id="penContextGroup" style="display: none;">
+        <span class="context-label">Pen Color:</span>
+        <div class="color-palette">
+          <button class="palette-swatch active" data-color="#e5252a" style="background:#e5252a"></button>
+          <button class="palette-swatch" data-color="#2563eb" style="background:#2563eb"></button>
+          <button class="palette-swatch" data-color="#16a34a" style="background:#16a34a"></button>
+          <button class="palette-swatch" data-color="#111827" style="background:#111827"></button>
+        </div>
+        <span class="context-label">Thickness:</span>
+        <select id="penWidthSelect" class="context-select sm">
+          <option value="1.5">Fine (1.5px)</option>
+          <option value="3" selected>Medium (3px)</option>
+          <option value="5">Thick (5px)</option>
+          <option value="8">Heavy (8px)</option>
+        </select>
+      </div>
+
+      <!-- Highlighter options -->
+      <div class="context-group" id="highlighterContextGroup" style="display: none;">
+        <span class="context-label">Highlight Color:</span>
+        <div class="color-palette">
+          <button class="palette-swatch active" data-color="#ffe066" style="background:#ffe066" title="Yellow"></button>
+          <button class="palette-swatch" data-color="#8ce99a" style="background:#8ce99a" title="Green"></button>
+          <button class="palette-swatch" data-color="#74c0fc" style="background:#74c0fc" title="Blue"></button>
+          <button class="palette-swatch" data-color="#ffa8a8" style="background:#ffa8a8" title="Pink"></button>
+          <button class="palette-swatch" data-color="#ffd43b" style="background:#ffd43b" title="Orange"></button>
+        </div>
+      </div>
+
+      <!-- Shapes options -->
+      <div class="context-group" id="shapesContextGroup" style="display: none;">
+        <span class="context-label">Outline Color:</span>
+        <input type="color" id="shapeStrokeColorPicker" value="#2563eb" class="color-picker-input" />
+        <span class="context-label">Thickness:</span>
+        <select id="shapeStrokeWidthSelect" class="context-select sm">
+          <option value="1">1px</option>
+          <option value="2" selected>2px</option>
+          <option value="4">4px</option>
+          <option value="6">6px</option>
+        </select>
+        <span class="context-label">Fill:</span>
+        <select id="shapeFillSelect" class="context-select sm">
+          <option value="transparent" selected>None (Transparent)</option>
+          <option value="#fee2e2">Light Red</option>
+          <option value="#dbeafe">Light Blue</option>
+          <option value="#dcfce7">Light Green</option>
+          <option value="#fef9c3">Light Yellow</option>
+          <option value="#ffffff">Solid White</option>
+        </select>
+      </div>
+
+      <!-- Selection item context -->
+      <div class="context-group" id="selectionContextGroup" style="display: none;">
+        <span class="context-label" id="selectionLabel">Selected Element</span>
+        <button id="duplicateItemBtn" class="btn btn-subtle sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Duplicate (Ctrl+D)</span>
+        </button>
+        <button id="deleteSelectionBtn" class="btn btn-danger sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span>Delete</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Workspace -->
+    <main class="app-workspace">
+      <!-- Left Collapsible Sidebar (Thumbnails) -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Page Thumbnails</span>
+          <span class="badge" id="sidebarPageCount">1 Page</span>
+        </div>
+        <div class="thumbnails-container" id="thumbnailsContainer">
+          <!-- Thumbnails dynamically rendered here -->
+        </div>
+      </aside>
+
+      <!-- Center PDF Viewport -->
+      <section class="viewer-viewport" id="viewerContainer">
+        <!-- PDF pages rendered here -->
+      </section>
+    </main>
+
+    <!-- Drag & Drop Overlay Zone -->
+    <div class="drop-overlay" id="dropOverlay">
+      <div class="drop-card">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#E5252A" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="12 18 12 12 9 15"/><polyline points="12 12 15 15"/></svg>
+        <h3>Drop your PDF file here</h3>
+        <p>Drop any PDF file to immediately view, edit text, annotate, and export.</p>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
